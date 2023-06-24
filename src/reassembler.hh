@@ -2,11 +2,29 @@
 
 #include "byte_stream.hh"
 
+#include <cstdint>
+#include <map>
 #include <string>
+#include <vector>
 
 class Reassembler
 {
+private:
+  static constexpr uint64_t capacity = 32ULL * 1024 * 1024;
+  uint64_t popped = 0;
+  uint64_t buffered = 0;
+  uint64_t endpos = 0;
+  uint64_t bytes_pending_ = 0;
+  uint64_t pending_pos = 0;
+  std::string buf{};
+  std::vector<bool> is_value{};
+  bool endpos_set = false;
+  void pop(Writer&);
 public:
+  Reassembler() {
+    buf.resize( capacity);
+    is_value.resize(capacity, false);
+  }
   /*
    * Insert a new substring to be reassembled into a ByteStream.
    *   `first_index`: the index of the first byte of the substring
