@@ -2,14 +2,20 @@
 
 #include "address.hh"
 #include "ethernet_frame.hh"
+#include "ethernet_header.hh"
 #include "ipv4_datagram.hh"
 
+#include <cstdint>
 #include <iostream>
 #include <list>
+#include <map>
+#include <memory>
 #include <optional>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 // A "network interface" that connects IP (the internet layer, or network layer)
 // with Ethernet (the network access layer, or link layer).
@@ -32,6 +38,19 @@
 // the network interface passes it up the stack. If it's an ARP
 // request or reply, the network interface processes the frame
 // and learns or replies as necessary.
+
+struct wait_eth{
+  InternetDatagram data{};
+  uint32_t next_hop{};
+};
+struct ip_to_eth_item{
+  EthernetAddress ethernet_address{};
+  uint64_t get_time_point{};
+  uint64_t query_time_point{};
+  std::vector<std::weak_ptr<wait_eth>> wd{}; // need clean period
+  bool address_initialized = false;
+  bool query_initialized = false;
+};
 class NetworkInterface
 {
 private:
@@ -41,6 +60,11 @@ private:
   // IP (known as Internet-layer or network-layer) address of the interface
   Address ip_address_;
 
+  uint64_t time_point = 0;
+  std::queue<std::shared_ptr<EthernetFrame>> mq{};
+  std::queue<std::pair<std::shared_ptr<wait_eth>, uint64_t>> wq{}; // second asc
+  std::map<uint32_t, ip_to_eth_item> ip_to_eth{};
+  void send_queued_datagram(ip_to_eth_item&);
 public:
   // Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer)
   // addresses
