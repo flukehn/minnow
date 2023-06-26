@@ -1,9 +1,14 @@
 #pragma once
 
+#include "address.hh"
 #include "network_interface.hh"
 
+#include <array>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <queue>
+#include <utility>
 
 // A wrapper for NetworkInterface that makes the host-side
 // interface asynchronous: instead of returning received datagrams
@@ -48,13 +53,32 @@ public:
   }
 };
 
+
+struct next_hop_info{
+  std::optional<Address> addr;
+  size_t id = 0;
+};
+class route_table
+{
+private:
+  struct trie{
+    std::array<std::shared_ptr<trie>,2> ch = {nullptr, nullptr};
+    std::optional<next_hop_info> next_hop{};
+  };
+  std::shared_ptr<trie> root=std::make_shared<trie>();
+public:
+  std::optional<next_hop_info> find_next(uint32_t) const;
+  void add_route(uint32_t,uint8_t,std::optional<Address>,size_t);
+};
+
 // A router that has multiple network interfaces and
 // performs longest-prefix-match routing between them.
 class Router
 {
   // The router's collection of network interfaces
   std::vector<AsyncNetworkInterface> interfaces_ {};
-
+  
+  route_table table{};
 public:
   // Add an interface to the router
   // interface: an already-constructed network interface
@@ -62,6 +86,7 @@ public:
   size_t add_interface( AsyncNetworkInterface&& interface )
   {
     interfaces_.push_back( std::move( interface ) );
+    //table.emplace_back();
     return interfaces_.size() - 1;
   }
 
